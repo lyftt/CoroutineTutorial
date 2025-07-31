@@ -1,5 +1,29 @@
 #pragma once
 
+/*
+* 这里定义了task协程的行为
+* （1）task协程创建之后立即挂起；
+* （2）task协程在结束之前，会将前一个协程恢复起来执行；
+* （3）task协程也是一个waiter，这说明支持嵌套协程，即一个协程A支持等待另一个协程B去执行别的，协程B执行完之后再恢复A的执行；
+* （4）task协程作为waiter的行为：
+*      - 在即将要执行的协程B的promise中记录下正在等待的协程A，然后去执行协程B；
+*      - 协程B执行完之后，waiter返回协程B的执行结果给协程A；
+*
+*
+*    |  task A  |
+                           co_await
+*               -------------------------> |                task B                 | 
+*                                          |            initial_suspend()          | 
+*                                          |              await_suspend()          | -----> promise.continuation_ = waiter   记录下正在等待的协程
+*                                          |               co_return xx            | 
+*                                          |              return_value(xx)         | -----> promise.result = xx
+*                                          |              final_suspend()          | -----> return promise.continuation_     恢复前一个正在等待的协程
+*                <------------------------ |               await_resume()          | -----> return promise.result            结果返回给了co_await
+*    |  task A  |                                      
+*                                        
+*
+*/
+
 #include <coroutine>
 #include <iostream>
 
